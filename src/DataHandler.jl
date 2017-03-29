@@ -57,18 +57,18 @@ type DataHandler{T} <: AbstractDH{T}
     learning datasets from the provided dataframe.  The columns for machine learning input
     and output (target) should be provided with keywords `input_cols` and `output_cols`
     respectively.  The constructor will randomly do a train-test split with test fraction
-    `testfrac`.  
+    `testfrac`.
 
     Note that currently `DataHandler` can't handle dataframes with null values, and
     automatically drops all rows containing null values.
     """
     function DataHandler(df::DataTable; testfrac::AbstractFloat=0.0, shuffle::Bool=false,
-                         input_cols::Vector{Symbol}=Symbol[], 
+                         input_cols::Vector{Symbol}=Symbol[],
                          output_cols::Vector{Symbol}=Symbol[],
                          normalize_cols::Vector{Symbol}=Symbol[],
                          assign::Bool=false,
                          userange::Bool=false)
-        if sum(!complete_cases(df)) ≠ 0
+        if sum(!completecases(df)) ≠ 0
             throw(ArgumentError("DataHandler only accepts complete dataframes."))
         end
         ndf = copy(df)
@@ -91,12 +91,12 @@ end
 export DataHandler
 
 
-# TODO all of this normalization stuff should be on the estimator side. 
+# TODO all of this normalization stuff should be on the estimator side.
 # get rid of it and make a good framework for doing this with estimators
 """
     computeNormalizeParameters!{T}(dh::AbstractDH{T}; dataset::Symbol=:dfTrain)
 
-Gets the parameters for centering and rescaling from either the training dataset 
+Gets the parameters for centering and rescaling from either the training dataset
 (`dataset=:dfTrain`) or the test dataset (`dataset=:dfTest`).
 
 Does this using the training dataframe by default, but can be set to use test.
@@ -197,17 +197,24 @@ shuffle!(dh::AbstractDH) = shuffle!(dh.df)
 export shuffle!
 
 
+function _get_assign_data{T}(dataname::Symbol, dh::DataHandler{T})
+    data = getfield(dh, dataname)
+    if isempty(data)
+        throw(ErrorException("Attempting to assign data from empty data set."))
+    end
+    X = convert(Array{T}, data[:, dh.colsInput])
+    y = convert(Array{T}, data[:, dh.colsOutput])
+    X, y
+end
+
+
 """
     assignTrain!(dh::AbstractDH)
 
 Assigns the training data in the data handler so it can be retrieved in proper form.
 """
 function assignTrain!{T}(dh::AbstractDH{T})
-    if isempty(dh.dfTrain)
-        throw(ErrorException("Attempting to assign data from empty training dataframe."))
-    end
-    X = convert(Array{T}, dh.dfTrain[:, dh.colsInput])
-    y = convert(Array{T}, dh.dfTrain[:, dh.colsOutput])
+    X, y = _get_assign_data(:dfTrain, dh)
     dh.X_train = X
     dh.y_train = y
     X, y
@@ -221,11 +228,7 @@ export assignTrain!
 Assigns the test data in the data handler.
 """
 function assignTest!{T}(dh::AbstractDH{T})
-    if isempty(dh.dfTest)
-        throw(ErrorException("Attempting to assign data from empty test dataframe."))
-    end
-    X = convert(Array{T}, dh.dfTest[:, dh.colsInput])
-    y = convert(Array{T}, dh.dfTest[:, dh.colsOutput])
+    X, y = _get_assign_data(:dfTest, dh)
     dh.X_test = X
     dh.y_test = y
     X, y
@@ -241,7 +244,7 @@ Assigns training and test data in the data handler.
 function assign!{T}(dh::AbstractDH{T})
     assignTrain!(dh)
     assignTest!(dh)
-    return
+    nothing
 end
 export assign!
 
@@ -259,7 +262,7 @@ function getTrainData(dh::AbstractDH; flatten::Bool=false)
         @assert size(y,2) == 1 "Attempted to flatten rank-2 array."
         y = squeeze(y, 2)
     end
-    return X, y    
+    X, y
 end
 export getTrainData
 
@@ -274,12 +277,29 @@ If `flatten`, attempts to flatten `y`.
 function getTestData(dh::AbstractDH; flatten::Bool=false)
     X, y = dh.X_test, dh.y_test
     if flatten
-        @assert size(y)[2] == 1 "Attempted to flatten rank-2 array."
+        @assert size(y,2) == 1 "Attempted to flatten rank-2 array."
         y = squeeze(y, 2)
     end
-    return X, y
+    X, y
 end
 export getTestData
+
+
+"""
+    getData(dh[; flatten=false])
+
+Gets all data (i.e. not split into training and test).  Note that to use this one does
+not have to call `assign!` since the data is taken directly from the main dataset.
+"""
+function getData(dh::AbstractDH; flatten::Bool=false)
+    X, y = _get_assign_data(:df, dh)
+    if flatten
+        @assert size(y,2) == 1 "Attempted to flatten rank-2 array."
+        y = squeeze(y,2)
+    end
+    X, y
+end
+export getData
 
 
 """
@@ -323,7 +343,7 @@ export split!
     split!(dh::AbstractDH, constraint::BitArray)
 
 Splits the data into training and test sets using a BitArray that must correspond to elements
-of dh.df.  The elements of the dataframe for which the BitArray holds 1 will be in the test 
+of dh.df.  The elements of the dataframe for which the BitArray holds 1 will be in the test
 set, the remaining elements will be in the training set.
 """
 function split!(dh::AbstractDH, constraint::BitArray)
@@ -338,7 +358,7 @@ export split!
 
 Set the training set to be the subset of the `DataHandler`'s dataframe for which `expr` is
 true.  `expr` should be an expression which evaluates to a `Bool` with `Symbol`s corresponding
-to column names for values.  See the documentation for `@constrain` and `@split!` 
+to column names for values.  See the documentation for `@constrain` and `@split!`
 for examples.
 """
 macro selectTrain!(dh, expr)
@@ -352,7 +372,7 @@ export @selectTrain!
 
 Set the test set to be the subset of the `DataHandler`'s dataframe for which `expr` is
 true.  `expr` should be an expression which evaluates to a `Bool` with `Symbol`s corresponding
-to column names for values.  See the documentation for `@constrain` and `@split!` 
+to column names for values.  See the documentation for `@constrain` and `@split!`
 for examples.
 """
 macro selectTest!(dh, expr)
@@ -392,7 +412,7 @@ end
     getTestAnalysisData(dh::AbstractDH, ŷ::Array; names::Vector{Symbol}=Symbol[],
                         squared_error::Bool=true)
 
-Creates a dataframe from the test dataframe and a supplied prediction.  
+Creates a dataframe from the test dataframe and a supplied prediction.
 
 The array names supplies the names for the columns, otherwise will generate default names.
 
@@ -407,14 +427,14 @@ function getTestAnalysisData(dh::AbstractDH, ŷ::Array; names::Vector{Symbol}=S
     if length(size(ŷ)) == 1
         ŷ = reshape(ŷ, (length(ŷ), 1))
     end
-    @assert size(ŷ,2) == length(dh.colsOutput) ("Supplied array must have same number of 
+    @assert size(ŷ,2) == length(dh.colsOutput) ("Supplied array must have same number of
                                                   columns as the handler's output.")
     if length(names) == 0
         names = getDefaultTestAnalysisColumnNames(dh)
     end
 
     @assert length(dh.colsOutput) == length(names) ("Wrong number of provided names.")
-    # if ŷ is short it is assumed to correspond to begining of dataframe, useful for 
+    # if ŷ is short it is assumed to correspond to begining of dataframe, useful for
     # time series where only a partial sequence has been generated
     df = dh.dfTest[1:size(ŷ)[1], :]
     for (idx, name) ∈ enumerate(names)

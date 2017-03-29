@@ -102,29 +102,6 @@ function _get_assign_data{T}(dataframe::Symbol, dh::TimeSeriesHandler{T}; sort::
 end
 
 
-# TODO: this is not working, need to use shared arrays, may not be able to use @parallel
-"""
-Parallel version, used by assignTrain! and assignTest!.
-"""
-function _get_assign_data_parallel{T}(dataframe::Symbol, dh::TimeSeriesHandler{T}; 
-                                      sort::Bool=true)
-    df = getfield(dh, dataframe)
-    if isempty(df) return end
-    if sort sort!(df, cols=[dh.timeindex]) end 
-    npoints = size(df)[1] - dh.seq_length
-    X = Array{T}(npoints, dh.seq_length, length(dh.colsInput))
-    y = Array{T}(npoints, length(dh.colsOutput))
-    # this SHOULD work
-    @parallel for i in 1:npoints
-        nextx = reshape(convert(Array, df[i:(i+dh.seq_length-1), dh.colsInput]),
-                        (1, dh.seq_length, length(dh.colsInput)))
-        X[i, :, :] = nextx
-        y[i, :] = convert(Array, df[i+dh.seq_length, dh.colsOutput])
-    end
-    return X, y
-end
-
-
 """
     assignTrain!(dh[, df; sort=true, parallel=false])
 
@@ -207,6 +184,15 @@ function assign!(dh::TimeSeriesHandler; sort::Bool=true)
     return
 end
 export assign!
+
+
+"""
+## TimeSeriesHandler
+If the `DataHandler` argument is a `TimeSeriesHandler`, one can optionall pass the flag
+`sort` which specifies that the data should be sorted first.
+"""
+getData(dh::TimeSeriesHandler; sort::Bool=true) = _get_assign_data(:df, dh, sort=sort)
+export getData
 
 
 """

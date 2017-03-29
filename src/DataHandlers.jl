@@ -1,5 +1,8 @@
 __precompile__(true)
 
+# TODO remove preprocessing stuff, it doesn't belong here
+# TODO implement padding for TimeSeriesHandler
+
 module DataHandlers
 
 using Reexport
