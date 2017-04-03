@@ -7,7 +7,7 @@ the reformatting of the dataframe is done before passing it to an instance of th
 
 The parameter T specifies the datatype of the input, output arrays.
 """
-type TimeSeriesHandler{T} <: AbstractDH{T}
+mutable struct TimeSeriesHandler{T} <: AbstractDH{T}
 
     # dataframe where all data is kept
     df::DataTable
@@ -56,14 +56,14 @@ type TimeSeriesHandler{T} <: AbstractDH{T}
     this case it makes sense for `input_cols == output_cols` (in fact that is probably the
     most common use case).
     """
-    function TimeSeriesHandler(df::DataTable, timeindex::Symbol, seq_length::Integer; 
-                               shuffle::Bool=false,
-                               n_test_sequences::Integer=0,
-                               input_cols::Array{Symbol}=Symbol[], 
-                               output_cols::Array{Symbol}=Symbol[],
-                               normalize_cols::Array{Symbol}=Symbol[],
-                               assign::Bool=false,
-                               userange::Bool=false)
+    function TimeSeriesHandler{T}(df::DataTable, timeindex::Symbol, seq_length::Integer; 
+                                  shuffle::Bool=false,
+                                  n_test_sequences::Integer=0,
+                                  input_cols::Array{Symbol}=Symbol[], 
+                                  output_cols::Array{Symbol}=Symbol[],
+                                  normalize_cols::Array{Symbol}=Symbol[],
+                                  assign::Bool=false,
+                                  userange::Bool=false) where T
         ndf = copy(df)
         o = new(ndf, input_cols, output_cols, normalize_cols)
         o.userange = userange

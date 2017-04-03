@@ -4,7 +4,7 @@ I haven't decided yet whether I actually want to use this
 
 
 
-type GroupedDataHandler{T} <: AbstractDH{T}
+mutable struct GroupedDataHandler{T} <: AbstractDH{T}
 
     df::DataTable
 
@@ -37,16 +37,16 @@ type GroupedDataHandler{T} <: AbstractDH{T}
     yhat::Array{T}
     yhat_train::Array{T}
 
-    function GroupedDataHandler(df::DataTable, class_cols::Vector{Symbol}; 
-                                testfrac::AbstractFloat=0.0, 
-                                shuffle::Bool=false,
-                                input_cols::Vector{Symbol}=Symbol[],
-                                output_cols::Vector{Symbol}=Symbol[],
-                                normalize_cols::Vector{Symbol}=Symbol[],
-                                assign::Bool=false,
-                                userange::Bool=false,
-                                compute_keys::Bool=true
-                               )
+    function GroupedDataHandler{T}(df::DataTable, class_cols::Vector{Symbol}; 
+                                   testfrac::AbstractFloat=0.0, 
+                                   shuffle::Bool=false,
+                                   input_cols::Vector{Symbol}=Symbol[],
+                                   output_cols::Vector{Symbol}=Symbol[],
+                                   normalize_cols::Vector{Symbol}=Symbol[],
+                                   assign::Bool=false,
+                                   userange::Bool=false,
+                                   compute_keys::Bool=true
+                               ) where  T
         if sum(!complete_cases(df)) ≠ 0
             throw(ArgumentError("GroupedDataHandler only accepts complete dataframes."))
         end

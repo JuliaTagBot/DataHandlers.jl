@@ -4,7 +4,7 @@
 
 Abstract base class for data handler objects.
 """
-abstract AbstractDH{T} <: Any
+abstract type AbstractDH{T} end
 export AbstractDH
 
 
@@ -18,7 +18,7 @@ it to an instance of this type.
 
 The parameter T specifies the datatype of the input, output arrays.
 """
-type DataHandler{T} <: AbstractDH{T}
+mutable struct DataHandler{T} <: AbstractDH{T}
 
     # dataframe where all data is kept
     df::DataTable
@@ -62,12 +62,12 @@ type DataHandler{T} <: AbstractDH{T}
     Note that currently `DataHandler` can't handle dataframes with null values, and
     automatically drops all rows containing null values.
     """
-    function DataHandler(df::DataTable; testfrac::AbstractFloat=0.0, shuffle::Bool=false,
-                         input_cols::Vector{Symbol}=Symbol[],
-                         output_cols::Vector{Symbol}=Symbol[],
-                         normalize_cols::Vector{Symbol}=Symbol[],
-                         assign::Bool=false,
-                         userange::Bool=false)
+    function DataHandler{T}(df::DataTable; testfrac::AbstractFloat=0.0, shuffle::Bool=false,
+                            input_cols::Vector{Symbol}=Symbol[],
+                            output_cols::Vector{Symbol}=Symbol[],
+                            normalize_cols::Vector{Symbol}=Symbol[],
+                            assign::Bool=false,
+                            userange::Bool=false) where T
         if sum(!completecases(df)) ≠ 0
             throw(ArgumentError("DataHandler only accepts complete dataframes."))
         end
